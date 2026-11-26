@@ -210,6 +210,11 @@ function tickSound(){ MUSIC.tick(); }
 function thudSound(){ MUSIC.thud(); }
 function scheduleSong(lv,t0){ MUSIC.schedule(lv,BEAT,t0,lastT); }
 
+/* 浏览器规定要有一次点击才允许出声：第一次点屏幕就把音频引擎建好，主页音乐跟着起来 */
+document.addEventListener('pointerdown',function(){
+  if(!AC){ initAudio(); if(state==='home') MUSIC.menu('home'); }
+},true);
+
 /* ========== 状态 ========== */
 var state='home';
 var songStart=0, el=0;
@@ -268,6 +273,7 @@ function showHome(){
   hideSet(); hudShow(false);
   bubbleEl.style.opacity='0'; bubOn=false;
   selX=selTX=VW*0.33;
+  if(AC) MUSIC.menu('home');
 }
 
 var wcards=[], wpos=0, wdrag=false, wdragY=0, wmoved=0, wraf=0;
@@ -344,8 +350,9 @@ function showSelect(){
   selX=selTX=VW*0.33;
   bubbleEl.style.opacity='0'; bubOn=false;
   layoutWheel();
+  if(AC) MUSIC.menu('select');
 }
-document.querySelector('#home .start').addEventListener('pointerdown',function(e){ e.preventDefault(); showSelect(); });
+document.querySelector('#home .start').addEventListener('pointerdown',function(e){ e.preventDefault(); if(!AC) initAudio(); showSelect(); });
 document.querySelector('#sel .back').addEventListener('pointerdown',function(e){ e.preventDefault(); showHome(); });
 
 function drawHome(){
@@ -373,6 +380,7 @@ function selPointer(e){
 function startLevel(i){
   curLevel=i; setMood(LEVELS[i].mood||'night');
   initAudio();
+  MUSIC.menuStop(); MUSIC.songOn();
   buildChart(LEVELS[i]);
   score=0; combo=0; maxCombo=0; hits=0; misses=0; missStreak=0; fx=[]; hurt=0;
   char.down=false; char.flipping=false;
@@ -837,8 +845,9 @@ document.getElementById('tickTgl').addEventListener('pointerdown',function(e){ e
 document.getElementById('setReset').addEventListener('pointerdown',function(e){ e.preventDefault(); CAL=0; VOL=90; TICKON=true; saveSet(); });
 
 /* 打歌中途退出 */
+/* 打歌中途退出：只把打歌那条总线哑掉，音频引擎留着，退出后选曲音乐无缝接上 */
 function quitSong(){
-  if(AC){ try{ MUSIC.close(); }catch(e){} AC=null; }
+  try{ MUSIC.menuStop(); MUSIC.songOff(); }catch(e){}
   showSelect();
 }
 exitEl.addEventListener('pointerdown',function(e){

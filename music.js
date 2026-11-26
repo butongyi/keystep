@@ -142,11 +142,16 @@ var LEVELS=[
 ];
 /* ========== 音频 ========== */
 var AC=null, MASTER=null, NOISE=null, TICKON=true;
+/* 两条总线：打歌走 SONGG，菜单走 MENUG，互不影响，可以单独静音/淡入 */
+var CUR=null, SONGG=null, MENUG=null;
+function bus(){ return CUR||MASTER; }
 function init(vol){
   if(AC){ if(AC.state==='suspended') AC.resume(); return AC; }
   var C=window.AudioContext||window.webkitAudioContext;
   AC=new C();
   MASTER=AC.createGain(); MASTER.gain.value=Math.max(0,Math.min(1,(vol||90)/100)); MASTER.connect(AC.destination);
+  SONGG=AC.createGain(); SONGG.gain.value=1; SONGG.connect(MASTER);
+  MENUG=AC.createGain(); MENUG.gain.value=0.9; MENUG.connect(MASTER);
   var n=Math.floor(AC.sampleRate*0.5);
   NOISE=AC.createBuffer(1,n,AC.sampleRate);
   var d=NOISE.getChannelData(0);
@@ -158,14 +163,14 @@ function init(vol){
 function piano(t,f,vol,dur){
   var o=AC.createOscillator(), gn=AC.createGain();
   o.type='triangle'; o.frequency.value=f;
-  o.connect(gn); gn.connect(MASTER);
+  o.connect(gn); gn.connect(bus());
   gn.gain.setValueAtTime(0,t);
   gn.gain.linearRampToValueAtTime(vol,t+0.008);
   gn.gain.exponentialRampToValueAtTime(0.0001,t+dur);
   o.start(t); o.stop(t+dur+0.04);
   var o2=AC.createOscillator(), g2=AC.createGain();
   o2.type='sine'; o2.frequency.value=f*2;
-  o2.connect(g2); g2.connect(MASTER);
+  o2.connect(g2); g2.connect(bus());
   g2.gain.setValueAtTime(0,t);
   g2.gain.linearRampToValueAtTime(vol*0.45,t+0.006);
   g2.gain.exponentialRampToValueAtTime(0.0001,t+dur*0.6);
@@ -180,7 +185,7 @@ function violin(t,f,vol,dur){
   var lfo=AC.createOscillator(); lfo.type='sine'; lfo.frequency.value=5.6;
   var lg=AC.createGain(); lg.gain.value=13;
   lfo.connect(lg); lg.connect(o.detune);
-  o.connect(lp); lp.connect(gn); gn.connect(MASTER);
+  o.connect(lp); lp.connect(gn); gn.connect(bus());
   gn.gain.setValueAtTime(0,t);
   gn.gain.linearRampToValueAtTime(vol,t+0.055);
   gn.gain.setValueAtTime(vol,t+dur*0.55);
@@ -191,7 +196,7 @@ function violin(t,f,vol,dur){
 function bgmSnare(t,v){
   var s=AC.createBufferSource(), f=AC.createBiquadFilter(), gn=AC.createGain();
   s.buffer=NOISE; f.type='bandpass'; f.frequency.value=1500; f.Q.value=0.9;
-  s.connect(f); f.connect(gn); gn.connect(MASTER);
+  s.connect(f); f.connect(gn); gn.connect(bus());
   gn.gain.setValueAtTime(0,t);
   gn.gain.linearRampToValueAtTime(v||0.06,t+0.004);
   gn.gain.exponentialRampToValueAtTime(0.0001,t+0.12);
@@ -200,7 +205,7 @@ function bgmSnare(t,v){
 function bgmBass(t,f,vol,dur){
   var o=AC.createOscillator(), gn=AC.createGain();
   o.type='triangle'; o.frequency.value=f;
-  o.connect(gn); gn.connect(MASTER);
+  o.connect(gn); gn.connect(bus());
   gn.gain.setValueAtTime(0,t);
   gn.gain.linearRampToValueAtTime(vol,t+0.05);
   gn.gain.linearRampToValueAtTime(vol*0.8,t+dur*0.7);
@@ -210,7 +215,7 @@ function bgmBass(t,f,vol,dur){
 function bgmBell(t,f,v){
   var o=AC.createOscillator(), gn=AC.createGain();
   o.type='sine'; o.frequency.value=f;
-  o.connect(gn); gn.connect(MASTER);
+  o.connect(gn); gn.connect(bus());
   gn.gain.setValueAtTime(0,t);
   gn.gain.linearRampToValueAtTime(v,t+0.02);
   gn.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
@@ -224,7 +229,7 @@ function inst(t,f,vol,dur,kind){
 /* 背景 */
 function bgmKick(t,v){
   var o=AC.createOscillator(), gn=AC.createGain();
-  o.type='sine'; o.connect(gn); gn.connect(MASTER);
+  o.type='sine'; o.connect(gn); gn.connect(bus());
   o.frequency.setValueAtTime(150,t);
   o.frequency.exponentialRampToValueAtTime(52,t+0.12);
   gn.gain.setValueAtTime(0,t);
@@ -235,7 +240,7 @@ function bgmKick(t,v){
 function bgmHat(t,v){
   var s=AC.createBufferSource(), hp=AC.createBiquadFilter(), gn=AC.createGain();
   s.buffer=NOISE; hp.type='highpass'; hp.frequency.value=5200;
-  s.connect(hp); hp.connect(gn); gn.connect(MASTER);
+  s.connect(hp); hp.connect(gn); gn.connect(bus());
   gn.gain.setValueAtTime(0,t);
   gn.gain.linearRampToValueAtTime(v||0.055,t+0.003);
   gn.gain.exponentialRampToValueAtTime(0.0001,t+0.05);
@@ -244,7 +249,7 @@ function bgmHat(t,v){
 function bgmPad(t,f,dur,vol){
   var o=AC.createOscillator(), gn=AC.createGain();
   o.type='sine'; o.frequency.value=f;
-  o.connect(gn); gn.connect(MASTER);
+  o.connect(gn); gn.connect(bus());
   gn.gain.setValueAtTime(0,t);
   gn.gain.linearRampToValueAtTime(vol,t+0.16);
   gn.gain.linearRampToValueAtTime(vol,t+dur-0.25);
@@ -254,6 +259,7 @@ function bgmPad(t,f,dur,vol){
 
 /* 整首一次性排程：旋律 + 伴奏一起排，保证连续 */
 function scheduleSong(lv,beat,t0,endT){
+  CUR=SONGG;
   for(var i=0;i<lv.mel.length;i++){
     var b=lv.mel[i][0], f=FREQ[lv.mel[i][1]];
     var nx=(i+1<lv.mel.length)?lv.mel[i+1][0]:(b+1);
@@ -262,12 +268,13 @@ function scheduleSong(lv,beat,t0,endT){
     inst(t0+b*beat, f, lv.kind==='violin'?0.30:0.32, dur, lv.kind);
   }
   scheduleBGM(lv,beat,t0,endT);
+  CUR=null;
 }
 /* 节拍器：每拍一下，每 4 拍的第一拍重一点（重拍高音、其它拍低音） */
 function bgmClick(t,v,acc){
   var o=AC.createOscillator(), gn=AC.createGain();
   o.type='triangle'; o.frequency.value= acc?1240:780;
-  o.connect(gn); gn.connect(MASTER);
+  o.connect(gn); gn.connect(bus());
   gn.gain.setValueAtTime(0,t);
   gn.gain.linearRampToValueAtTime(v,t+0.004);
   gn.gain.exponentialRampToValueAtTime(0.0001,t+0.055);
@@ -281,12 +288,98 @@ function scheduleBGM(lv,beat,t0,endT){
   }
 }
 
+/* ========== 菜单音乐：主页 / 选曲 ==========
+   八音盒琶音 + 氛围垫音，8 小节无缝循环
+   home 72bpm：只有琶音和垫音，慢慢铺
+   select 100bpm：同一套和弦，琶音变密，加一点轻鼓点，像"进了菜单"
+   不进选曲列表，只属于界面
+*/
+var MENU_CH=[
+  [220.00,261.63,329.63],   /* Am */
+  [174.61,220.00,261.63],   /* F  */
+  [261.63,329.63,392.00],   /* C  */
+  [196.00,246.94,293.66],   /* G  */
+  [220.00,261.63,329.63],
+  [174.61,220.00,261.63],
+  [261.63,329.63,392.00],
+  [196.00,246.94,293.66]
+];
+var MENU_ARP=[[0,0],[1,1],[2,2],[3,1]];
+var MENU_ARP_FAST=[[0,0],[0.5,1],[1,2],[1.5,1],[2,2],[2.5,1],[3,0],[3.5,2]];
+var MENU_CFG={
+  home:{bpm:72,arp:MENU_ARP,arpVol:0.13,padVol:0.050,drums:false},
+  select:{bpm:100,arp:MENU_ARP_FAST,arpVol:0.105,padVol:0.042,drums:true}
+};
+
+function scheduleMenuCycle(kind,t0){
+  var cfg=MENU_CFG[kind]||MENU_CFG.home, beat=60/cfg.bpm, bars=MENU_CH.length;
+  CUR=MENUG;
+  for(var i=0;i<bars;i++){
+    var ch=MENU_CH[i], bt=t0+i*4*beat;
+    for(var p=0;p<ch.length;p++) bgmPad(bt, ch[p], 4*beat-0.06, cfg.padVol);
+    for(var a=0;a<cfg.arp.length;a++){
+      var s=cfg.arp[a];
+      piano(bt+s[0]*beat, ch[s[1]]*2, cfg.arpVol, Math.min(0.9, beat*1.6));
+    }
+    if(cfg.drums){
+      bgmKick(bt,0.085); bgmKick(bt+2*beat,0.05);
+      bgmBass(bt, ch[0]*0.5, 0.10, 2*beat-0.06);
+      bgmBass(bt+2.5*beat, ch[0]*0.5, 0.05, 1.2*beat);
+      for(var h=0;h<4;h++) bgmHat(bt+(0.5+h)*beat, 0.028);
+    }
+    if(i%2===1) bgmBell(bt+2*beat, ch[2]*2, 0.032);
+  }
+  CUR=null;
+}
+
+var MENU={on:false,kind:'home',until:0,timer:null};
+/* 停菜单：旧总线直接淡到 0 并丢弃，已经排进去的音就哑掉了，不会和新的一段叠在一起 */
+function menuStop(){
+  MENU.on=false;
+  if(MENU.timer){ clearTimeout(MENU.timer); MENU.timer=null; }
+  if(MENUG&&AC){ var old=MENUG; MENUG=null; old.gain.cancelScheduledValues(AC.currentTime); old.gain.setTargetAtTime(0,AC.currentTime,0.06); }
+}
+function menuPump(){
+  if(!MENU.on||!AC||!MENUG) return;
+  var cfg=MENU_CFG[MENU.kind]||MENU_CFG.home, cyc=MENU_CH.length*4*(60/cfg.bpm);
+  if(MENU.until<AC.currentTime) MENU.until=AC.currentTime+0.05;
+  var guard=0;
+  while(MENU.until<AC.currentTime+cyc && guard++<6){
+    scheduleMenuCycle(MENU.kind, MENU.until);
+    MENU.until+=cyc;
+  }
+  if(MENU.timer) clearTimeout(MENU.timer);
+  MENU.timer=setTimeout(menuPump, Math.max(600,(cyc-1)*1000));
+}
+function menu(kind){
+  if(!AC) return;
+  var k=(kind==='select')?'select':'home';
+  if(MENU.on&&MENU.kind===k&&MENUG) return;   /* 同一段还在放，别打断 */
+  if(MENU.timer){ clearTimeout(MENU.timer); MENU.timer=null; }
+  if(MENUG){ var old=MENUG; old.gain.cancelScheduledValues(AC.currentTime); old.gain.setTargetAtTime(0,AC.currentTime,0.06); }
+  MENUG=AC.createGain();
+  MENUG.gain.setValueAtTime(0,AC.currentTime);
+  MENUG.gain.linearRampToValueAtTime(0.9,AC.currentTime+0.35);
+  MENUG.connect(MASTER);
+  MENU.kind=k; MENU.on=true; MENU.until=AC.currentTime+0.1;
+  menuPump();
+}
+/* 打歌总线：每开一首新建一条，上一首已经排进去的音随旧总线一起哑掉 */
+function songOn(){
+  if(!AC) return;
+  if(SONGG){ var old=SONGG; old.gain.cancelScheduledValues(AC.currentTime); old.gain.setTargetAtTime(0,AC.currentTime,0.05); }
+  SONGG=AC.createGain(); SONGG.gain.value=1; SONGG.connect(MASTER);
+}
+function songOff(){
+  if(SONGG&&AC){ var old=SONGG; SONGG=null; old.gain.cancelScheduledValues(AC.currentTime); old.gain.setTargetAtTime(0,AC.currentTime,0.07); }
+}
+
 function missSound(){
   var t=AC.currentTime+0.001;
   var o=AC.createOscillator(), gn=AC.createGain();
   o.type='sine'; o.frequency.setValueAtTime(120,t);
   o.frequency.exponentialRampToValueAtTime(60,t+0.16);
-  o.connect(gn); gn.connect(MASTER);
+  o.connect(gn); gn.connect(bus());
   gn.gain.setValueAtTime(0,t);
   gn.gain.linearRampToValueAtTime(0.32,t+0.006);
   gn.gain.exponentialRampToValueAtTime(0.0001,t+0.2);
@@ -297,7 +390,7 @@ function tickSound(){
   var t=AC.currentTime+0.001;
   var o=AC.createOscillator(), gn=AC.createGain();
   o.type='square'; o.frequency.value=440;
-  o.connect(gn); gn.connect(MASTER);
+  o.connect(gn); gn.connect(bus());
   gn.gain.setValueAtTime(0,t);
   gn.gain.linearRampToValueAtTime(0.06,t+0.004);
   gn.gain.exponentialRampToValueAtTime(0.0001,t+0.07);
@@ -310,7 +403,7 @@ function thudSound(){
   var o=AC.createOscillator(), gn=AC.createGain();
   o.type='triangle'; o.frequency.setValueAtTime(90,t);
   o.frequency.exponentialRampToValueAtTime(32,t+0.14);
-  o.connect(gn); gn.connect(MASTER);
+  o.connect(gn); gn.connect(bus());
   gn.gain.setValueAtTime(0,t);
   gn.gain.linearRampToValueAtTime(0.3,t+0.01);
   gn.gain.exponentialRampToValueAtTime(0.0001,t+0.24);
@@ -319,13 +412,18 @@ function thudSound(){
 
 function setVol(v){ if(MASTER) MASTER.gain.value=Math.max(0,Math.min(1,v/100)); }
 function setTick(v){ TICKON=!!v; }
-function closeAudio(){ if(AC){ try{ AC.close(); }catch(e){} } AC=null; MASTER=null; NOISE=null; }
+function closeAudio(){
+  MENU.on=false; if(MENU.timer){ clearTimeout(MENU.timer); MENU.timer=null; }
+  SONGG=null; MENUG=null; CUR=null;
+  if(AC){ try{ AC.close(); }catch(e){} } AC=null; MASTER=null; NOISE=null;
+}
 function schedule(lv,beat,t0,endT){ scheduleSong(lv,beat,t0,endT); }
 
 return {
   FREQ:FREQ, LEVELS:LEVELS,
   init:init, setVol:setVol, setTick:setTick, close:closeAudio,
   schedule:schedule, inst:inst,
+  menu:menu, menuStop:menuStop, songOn:songOn, songOff:songOff,
   miss:missSound, tick:tickSound, thud:thudSound
 };
 })();
