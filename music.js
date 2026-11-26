@@ -307,8 +307,8 @@ var MENU_CH=[
 var MENU_ARP=[[0,0],[1,1],[2,2],[3,1]];
 var MENU_ARP_FAST=[[0,0],[0.5,1],[1,2],[1.5,1],[2,2],[2.5,1],[3,0],[3.5,2]];
 var MENU_CFG={
-  home:{bpm:72,arp:MENU_ARP,arpVol:0.13,padVol:0.050,drums:false},
-  select:{bpm:100,arp:MENU_ARP_FAST,arpVol:0.105,padVol:0.042,drums:true}
+  home:{bpm:72,arp:MENU_ARP,arpVol:0.18,padVol:0.072,drums:false},
+  select:{bpm:100,arp:MENU_ARP_FAST,arpVol:0.15,padVol:0.060,drums:true}
 };
 
 function scheduleMenuCycle(kind,t0){
@@ -322,12 +322,12 @@ function scheduleMenuCycle(kind,t0){
       piano(bt+s[0]*beat, ch[s[1]]*2, cfg.arpVol, Math.min(0.9, beat*1.6));
     }
     if(cfg.drums){
-      bgmKick(bt,0.085); bgmKick(bt+2*beat,0.05);
-      bgmBass(bt, ch[0]*0.5, 0.10, 2*beat-0.06);
-      bgmBass(bt+2.5*beat, ch[0]*0.5, 0.05, 1.2*beat);
-      for(var h=0;h<4;h++) bgmHat(bt+(0.5+h)*beat, 0.028);
+      bgmKick(bt,0.11); bgmKick(bt+2*beat,0.065);
+      bgmBass(bt, ch[0]*0.5, 0.12, 2*beat-0.06);
+      bgmBass(bt+2.5*beat, ch[0]*0.5, 0.06, 1.2*beat);
+      for(var h=0;h<4;h++) bgmHat(bt+(0.5+h)*beat, 0.035);
     }
-    if(i%2===1) bgmBell(bt+2*beat, ch[2]*2, 0.032);
+    if(i%2===1) bgmBell(bt+2*beat, ch[2]*2, 0.04);
   }
   CUR=null;
 }
@@ -385,9 +385,9 @@ function missSound(){
   gn.gain.exponentialRampToValueAtTime(0.0001,t+0.2);
   o.start(t); o.stop(t+0.22);
 }
-function tickSound(){
-  if(!TICKON||!AC) return;
-  var t=AC.currentTime+0.001;
+function tickSound(){ tickAt(AC?AC.currentTime+0.001:0); }
+function tickAt(t){
+  if(!TICKON||!AC||!t) return;
   var o=AC.createOscillator(), gn=AC.createGain();
   o.type='square'; o.frequency.value=440;
   o.connect(gn); gn.connect(bus());
@@ -424,6 +424,6 @@ return {
   init:init, setVol:setVol, setTick:setTick, close:closeAudio,
   schedule:schedule, inst:inst,
   menu:menu, menuStop:menuStop, songOn:songOn, songOff:songOff,
-  miss:missSound, tick:tickSound, thud:thudSound
+  miss:missSound, tick:tickSound, tickAt:tickAt, thud:thudSound
 };
 })();

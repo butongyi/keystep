@@ -55,6 +55,7 @@
     font-weight:800;letter-spacing:.24em;text-indent:.24em;color:#06121a;background:#9df3ff;
     border:2px solid #05070f;box-shadow:5px 5px 0 #05070f;}
   #home .start:active{transform:translate(3px,3px);box-shadow:1px 1px 0 #05070f;}
+  #home .tap{margin-top:12px;font-size:10px;letter-spacing:.2em;text-indent:.2em;color:#6d84a6;}
   #home .set{position:absolute;right:12px;top:14px;width:46px;height:26px;display:flex;align-items:center;
     justify-content:center;font-size:11px;font-weight:700;letter-spacing:.14em;text-indent:.14em;
     color:#cfe0f6;background:#111a2c;border:2px solid #3f5a86;box-shadow:3px 3px 0 #05070f;}
@@ -120,6 +121,7 @@
   <canvas id="logo" width="41" height="7"></canvas>
   <div class="cn">键 步 如 飞</div>
   <div class="start">开 始</div>
+  <div class="tap">轻点屏幕开启声音</div>
 </div>
 <div id="sel">
   <div class="back">‹</div>
@@ -213,7 +215,12 @@ function scheduleSong(lv,t0){ MUSIC.schedule(lv,BEAT,t0,lastT); }
 
 /* 浏览器规定要有一次点击才允许出声：第一次点屏幕就把音频引擎建好，主页音乐跟着起来 */
 document.addEventListener('pointerdown',function(){
-  if(!AC){ initAudio(); if(state==='home') MUSIC.menu('home'); }
+  if(!AC){
+    initAudio();
+    if(state==='home') MUSIC.menu('home');
+    var tapEl=document.querySelector('#home .tap');
+    if(tapEl) tapEl.style.display='none';
+  }
 },true);
 
 /* 切走页面就静音：把音频时钟挂起，声音立刻停；回来再接着放
@@ -409,12 +416,13 @@ function startLevel(i){
   bubbleEl.style.opacity='0'; bubOn=false;
   state='playing';
   scheduleSong(LEVELS[i], songStart);
-  for(var k=0;k<4;k++) tickSound();
+  /* 倒计时滴声：跟 4/3/2/1 的显示对拍，每拍一下，不会四声全挤在开头 */
+  for(var k=0;k<4;k++) MUSIC.tickAt(songStart-(4-k)*BEAT);
 }
 
 function achievement(){
   var acc=totalNotes?hits/totalNotes:0;
-  if(hits===0) return { n:'你打音游像镜飞彩' };
+  if(acc<0.2) return { n:'你打音游像镜飞彩' };
   if(acc<0.4) return { n:'你的存在，no thank you' };
   if(acc<0.7) return { n:'我只是路过的假面骑士' };
   if(acc<0.9) return { n:'感觉好像能行' };
@@ -777,7 +785,7 @@ function draw(){
   }
 
   if(inPlay()&&el<0){
-    var left=Math.ceil(-el/BEAT);
+    var left=Math.min(4,Math.ceil(-el/BEAT));
     g.fillStyle='rgba(180,220,255,0.9)';
     g.font='800 30px ui-monospace,monospace';
     g.textAlign='center';
