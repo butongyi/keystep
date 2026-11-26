@@ -216,6 +216,21 @@ document.addEventListener('pointerdown',function(){
   if(!AC){ initAudio(); if(state==='home') MUSIC.menu('home'); }
 },true);
 
+/* 切走页面就静音：把音频时钟挂起，声音立刻停；回来再接着放
+   打歌中途按了"菜单"暂停的情况不算，那种回来要保持暂停 */
+var hiddenSusp=false;
+document.addEventListener('visibilitychange',function(){
+  if(!AC) return;
+  if(document.hidden){
+    if(AC.state==='running'&&state!=='paused'){ hiddenSusp=true; try{ AC.suspend(); }catch(e){} }
+  }else if(hiddenSusp){
+    hiddenSusp=false; try{ AC.resume(); }catch(e){}
+  }
+});
+window.addEventListener('pagehide',function(){
+  try{ if(AC&&AC.state==='running') AC.suspend(); }catch(e){}
+});
+
 /* ========== 状态 ========== */
 var state='home';
 var songStart=0, el=0;
