@@ -20,12 +20,13 @@
   #hud{position:fixed;inset:0;pointer-events:none;display:none;}
   #score{position:absolute;left:10px;top:8px;font:800 18px/1 "Courier New",monospace;color:#eaf4ff;
     text-shadow:2px 2px 0 #05070f;}
-  #combo{position:absolute;right:52px;top:9px;font:800 13px/1 "Courier New",monospace;color:#8ff0ff;
+  #combo{position:absolute;right:64px;top:9px;font:800 13px/1 "Courier New",monospace;color:#8ff0ff;
     text-shadow:2px 2px 0 #05070f;}
   #bar{position:absolute;left:0;bottom:0;height:3px;background:#5fd8ff;width:0;opacity:.8;}
-  #exit{position:absolute;right:10px;top:8px;width:30px;height:30px;pointer-events:auto;display:none;
+  #exit{position:absolute;right:10px;top:8px;height:28px;padding:0 9px;pointer-events:auto;display:none;
     align-items:center;justify-content:center;background:#111a2c;border:2px solid #3f5a86;
-    box-shadow:3px 3px 0 #05070f;color:#eaf4ff;font:800 14px/1 "Courier New",monospace;}
+    box-shadow:3px 3px 0 #05070f;color:#eaf4ff;font:800 11px/1 "Courier New",monospace;
+    letter-spacing:.16em;text-indent:.16em;}
   #exit:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #05070f;}
 
   #ui{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
@@ -111,7 +112,7 @@
   <div id="score">0</div>
   <div id="combo"></div>
   <div id="bar"></div>
-  <div id="exit">×</div>
+  <div id="exit">菜单</div>
 </div>
 <div id="ui"></div>
 <div id="home">
@@ -672,7 +673,7 @@ function draw(){
   T=performance.now()/1000;
   var dtf=prevT?Math.min(0.05,T-prevT):0.016;
   prevT=T;
-  el=(AC&&state==='playing')?(AC.currentTime-songStart):0;
+  el=(AC&&state==='playing')?(AC.currentTime-songStart):(state==='paused'?pausedEl:0);
   if(palMix<1) palMix=Math.min(1,(T-palT0)/0.5);
 
   if(state==='home'){ drawHome(); return; }
@@ -695,7 +696,7 @@ function draw(){
       if(fx[i].type==='hit') gl=Math.max(gl,1-fx[i].t/0.35);
       else { gl=Math.max(gl,1-fx[i].t/0.35); mis=true; }
     }
-    drawKey(l, state==='playing'&&l===land, gl, mis);
+    drawKey(l, inPlay()&&l===land, gl, mis);
   }
 
   if(state==='select'){
@@ -706,7 +707,7 @@ function draw(){
     if(bubOn){ updateBubble(); if(T-bubT>3.2){ bubbleEl.style.opacity='0'; bubOn=false; } }
   }
 
-  if(state==='playing'){
+  if(inPlay()){
     for(var i=0;i<chart.length;i++){
       var n=chart[i];
       if(n.judged) continue;
@@ -740,7 +741,7 @@ function draw(){
   }
   if(flip>0) air-=Math.sin(Math.PI*flip)*11;
 
-  if(state==='playing'){
+  if(inPlay()){
     if(char.down) heroFlat(char.x,keyTop,AC?AC.currentTime:0);
     else drawHero(char.x,keyTop,air,AC?AC.currentTime:0,flip);
   }
@@ -760,7 +761,7 @@ function draw(){
     g.globalAlpha=1;
   }
 
-  if(state==='playing'&&el<0){
+  if(inPlay()&&el<0){
     var left=Math.ceil(-el/BEAT);
     g.fillStyle='rgba(180,220,255,0.9)';
     g.font='800 30px ui-monospace,monospace';
@@ -845,6 +846,45 @@ document.getElementById('tickTgl').addEventListener('pointerdown',function(e){ e
 document.getElementById('setReset').addEventListener('pointerdown',function(e){ e.preventDefault(); CAL=0; VOL=90; TICKON=true; saveSet(); });
 
 /* 打歌中途退出 */
+/* ===== 暂停 / 继续 / 退出 =====
+   暂停用 AudioContext.suspend() 冻结整个音频时钟：
+   音符、节拍器、角色动作、倒计时全部停在原地，继续时原样接上，不会错拍 */
+var pausedEl=0;
+function inPlay(){ return state==='playing'||state==='paused'; }
+
+function showPauseUI(){
+  ui.style.background='rgba(6,8,16,.62)';
+  ui.innerHTML='<div class="box" style="width:min(76cqw,320px)">'+
+    '<h1>暂 停</h1>'+
+    '<div class="sub">谱面停在这儿，回来接着打</div>'+
+    '<button id="btnResume">继 续</button>'+
+    '<button id="btnQuit" class="ghost">退 出</button></div>';
+  document.getElementById('btnResume').onclick=resumeSong;
+  document.getElementById('btnQuit').onclick=quitFromPause;
+}
+function hidePauseUI(){ ui.innerHTML=''; ui.style.background='none'; }
+
+function pauseSong(){
+  if(state!=='playing'||!AC) return;
+  pausedEl=AC.currentTime-songStart;
+  state='paused';
+  exitEl.style.display='none';
+  showPauseUI();
+  try{ AC.suspend(); }catch(e){}
+}
+function resumeSong(){
+  if(state!=='paused'||!AC) return;
+  hidePauseUI();
+  exitEl.style.display='flex';
+  state='playing';
+  try{ AC.resume(); }catch(e){}
+}
+function quitFromPause(){
+  hidePauseUI();
+  if(AC&&AC.state==='suspended'){ try{ AC.resume(); }catch(e){} }
+  quitSong();
+}
+
 /* 打歌中途退出：只把打歌那条总线哑掉，音频引擎留着，退出后选曲音乐无缝接上 */
 function quitSong(){
   try{ MUSIC.menuStop(); MUSIC.songOff(); }catch(e){}
@@ -852,7 +892,7 @@ function quitSong(){
 }
 exitEl.addEventListener('pointerdown',function(e){
   e.preventDefault();
-  if(state==='playing'||state==='result') quitSong();
+  if(state==='playing') pauseSong();
 });
 
 function updateBubble(){
